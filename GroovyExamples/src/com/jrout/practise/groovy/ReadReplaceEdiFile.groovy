@@ -7,23 +7,42 @@ import java.util.concurrent.TimeUnit
 def list = []
 def timeStampAfter = System.currentTimeMillis()
 def dir = new File("C:\\Users\\jrout\\Documents\\_ProjectSpecific\\riverside\\IWAY-Integrations\\")
-def builder = new AntBuilder();
 while (true) {
     list = [];
-    Thread.sleep(5000)
+    Thread.sleep(3000)
     def tempTimeStamp = System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(10)
     println " Changing files modified After : ${new Date(timeStampAfter)}"
     try {
         dir.eachFileRecurse(FileType.FILES) { file ->
             if (isTimeStampWithAnHr(file.lastModified(), timeStampAfter) && !file.name.endsWith(".xml")) {
                 println "File : $file : TimeStamp : ${new Date(file.lastModified())}"
-                builder.replace(file: file, token: "~", value: "\n")
-                //list << file
+
+                def shouldReplace = false;
+                def count = 0;
+                def stringBuffer = new StringBuffer();
+                def endsWithCount = 0;
+                file.eachLine { line ->
+                    if(count++ < 4 ){
+                        shouldReplace = line.contains("~");
+                        if(line.endsWith("~")){
+                            endsWithCount++;
+                        }
+                        if(endsWithCount > 2){
+                            shouldReplace = false;
+                            return;
+                        }
+                    }else if (!shouldReplace){
+                        return;
+                    }
+                    stringBuffer << line
+                }
+                if(shouldReplace){
+                    file.newWriter().withWriter { w ->
+                        w << stringBuffer.replaceAll("~","~\n")
+                    }
+                }
             }
         }
-        /*(list).each {
-            builder.replace(file: it, token: "~", value: "\n")
-        }*/
     } catch (Exception exp) {
         continue;
     }
